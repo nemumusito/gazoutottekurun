@@ -29,6 +29,9 @@ BASE_FOLDER = "img"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 TIMEOUT = 30  # リクエストのタイムアウト時間（秒）
 
+# キャンセルフラグ
+cancel_flag = threading.Event()
+
 def sanitize_filename(filename):
     return re.sub(r'[\\/*?:"<>|]', "", filename)
 
@@ -48,6 +51,8 @@ def parse_aspect_ratio(aspect_ratio):
     return None
 
 def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance):
+    if cancel_flag.is_set():
+        return None
     try:
         response = requests.get(url, stream=True, timeout=TIMEOUT)
         if response.status_code == 200:
@@ -95,6 +100,8 @@ def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance
     return None
 
 def fetch_image_urls(search_url, headers):
+    if cancel_flag.is_set():
+        return []
     try:
         response = requests.get(search_url, headers=headers, timeout=TIMEOUT)
         if response.status_code != 200:
@@ -104,6 +111,8 @@ def fetch_image_urls(search_url, headers):
         image_urls = []
         
         for img in soup.find_all('a', class_='iusc'):
+            if cancel_flag.is_set():
+                break
             try:
                 m_content = json.loads(img.get('m', '{}'))
                 img_url = m_content.get('murl')
@@ -123,6 +132,7 @@ def fetch_image_urls(search_url, headers):
         return []
 
 def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_ratio_tolerance=0.2, progress=None):
+    cancel_flag.clear()
     search_url = f"https://www.bing.com/images/search?q={query}&form=HDRSC2&first=1"
     headers = {
         "User-Agent": USER_AGENT,
@@ -150,6 +160,8 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
         progress(0, desc="Downloading images")
     
     for i, img_url in enumerate(image_urls):
+        if cancel_flag.is_set():
+            break
         if len(downloaded_images) >= num_images:
             break
         
@@ -176,12 +188,19 @@ def gradio_scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance
         
         downloaded_images = scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance, progress)
         if not downloaded_images:
-            raise Exception("画像のダウンロードに失敗しました。")
+            if cancel_flag.is_set():
+                raise gr.Error("ダウンロードがキャンセルされました。")
+            else:
+                raise Exception("画像のダウンロードに失敗しました。")
         return downloaded_images
     except Exception as e:
         logging.error(f"Error in gradio_scrape_images: {str(e)}")
         logging.error(traceback.format_exc())
         raise gr.Error(f"エラーが発生しました: {str(e)}")
+
+def cancel_download():
+    cancel_flag.set()
+    return "ダウンロードをキャンセルしました。"
 
 iface = gr.Interface(
     fn=gradio_scrape_images,
@@ -197,8 +216,13 @@ iface = gr.Interface(
     ],
     outputs=gr.Gallery(label="ダウンロードされた画像"),
     title="画像スクレイピングツール",
-    description="キーワードを入力すると、関連する画像を自動的にダウンロードして表示します。画像はWebP形式で保存されます。"
+    description="キーワードを入力すると、関連する画像を自動的にダウンロードして表示します。画像はWebP形式で保存されます。",
+    allow_flagging="never",
 )
+
+iface.load(lambda: None, None, gr.Button("Clear"), outputs=iface.inputs)
+cancel_button = gr.Button("キャンセル")
+cancel_button.click(fn=cancel_download, inputs=None, outputs=gr.Textbox())
 
 def run_gradio():
     iface.launch(share=True)
