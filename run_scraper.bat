@@ -2,12 +2,26 @@
 chcp 65001 > nul
 echo Starting the project...
 
-REM Check Python version
-python --version
+REM Check if Python is installed
+python --version >nul 2>&1
 if errorlevel 1 (
-    echo Failed to check Python version. Please make sure Python is installed and added to PATH.
-    pause
-    exit /b 1
+    echo Python is not installed. Installing Python 3.10.6...
+    
+    REM Download Python 3.10.6 installer
+    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://www.python.org/ftp/python/3.10.6/python-3.10.6-amd64.exe', 'python-3.10.6-amd64.exe')"
+    
+    REM Install Python 3.10.6
+    python-3.10.6-amd64.exe /quiet InstallAllUsers=1 PrependPath=1
+    
+    REM Delete the installer
+    del python-3.10.6-amd64.exe
+    
+    REM Update PATH
+    setx PATH "%PATH%;C:\Program Files\Python310;C:\Program Files\Python310\Scripts" /M
+    
+    echo Python 3.10.6 has been installed.
+) else (
+    echo Python is already installed.
 )
 
 REM Create virtual environment if it doesn't exist
