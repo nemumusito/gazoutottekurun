@@ -10,6 +10,7 @@ from PIL import Image
 import io
 import webview
 import threading
+import traceback
 
 # 定数の定義
 ASPECT_RATIO_CHOICES = [
@@ -116,13 +117,15 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
     folder = create_folder(BASE_FOLDER, query)
     
     image_urls = fetch_image_urls(search_url, headers)
+    if not image_urls:
+        raise Exception("画像URLの取得に失敗しました。")
     
     downloaded_images = []
     start_index = get_next_image_number(folder)
     
     target_ratio = parse_aspect_ratio(aspect_ratio)
     
-    if progress:
+    if progress is not None:
         progress(0, desc="Downloading images")
     
     for i, img_url in enumerate(image_urls):
@@ -133,7 +136,7 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
         filepath = download_and_convert_image(img_url, folder, query, start_index + len(downloaded_images), target_ratio, aspect_ratio_tolerance)
         if filepath:
             downloaded_images.append(filepath)
-            if progress:
+            if progress is not None:
                 progress((len(downloaded_images)) / num_images, desc=f"Downloaded {len(downloaded_images)} of {num_images}")
             time.sleep(1)  # 1秒待機してサーバーに負荷をかけないようにする
 
@@ -148,10 +151,13 @@ def gradio_scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance
             raise ValueError("ダウンロードする画像の数は1から50の間で指定してください。")
         
         downloaded_images = scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance, progress)
+        if not downloaded_images:
+            raise Exception("画像のダウンロードに失敗しました。")
         return downloaded_images
     except Exception as e:
         print(f"Error in gradio_scrape_images: {str(e)}")
-        raise gr.Error(str(e))
+        print(traceback.format_exc())
+        raise gr.Error(f"エラーが発生しました: {str(e)}")
 
 iface = gr.Interface(
     fn=gradio_scrape_images,
