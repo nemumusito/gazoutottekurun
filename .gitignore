@@ -1,0 +1,16 @@
+# Ignore all files by default
+*
+
+# Allow specific file types
+!*.py
+!*.md
+!*.txt
+!*.bat
+!.gitignore
+
+# Ignore pycache
+__pycache__/
+*.pyc
+
+# Ignore virtual environment
+venv/
