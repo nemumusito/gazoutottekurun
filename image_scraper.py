@@ -27,9 +27,11 @@ TIMEOUT = 30  # リクエストのタイムアウト時間（秒）
 # キャンセルフラグ
 cancel_flag = threading.Event()
 
+# ファイル名から特殊文字を除去する関数
 def sanitize_filename(filename):
     return re.sub(r'[\\/*?:"<>|]', "", filename)
 
+# 保存用フォルダを作成する関数
 def create_folder(base_folder, query):
     sanitized_query = sanitize_filename(query)
     folder_path = os.path.join(base_folder, sanitized_query)
@@ -37,6 +39,7 @@ def create_folder(base_folder, query):
         os.makedirs(folder_path)
     return folder_path
 
+# アスペクト比を解析する関数
 def parse_aspect_ratio(aspect_ratio):
     if aspect_ratio == "指定なし ⬜":
         return None
@@ -45,6 +48,7 @@ def parse_aspect_ratio(aspect_ratio):
         return float(match.group(1)) / float(match.group(2))
     return None
 
+# 画像をダウンロードし、指定された形式に変換する関数
 def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance, image_format):
     if cancel_flag.is_set():
         return None
@@ -78,7 +82,7 @@ def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance
                 if os.path.exists(filepath):
                     return None
                 
-                # Convert and save as specified format
+                # 指定された形式で保存
                 image.save(filepath, image_format.upper())
                 return filepath
             else:
@@ -90,6 +94,7 @@ def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance
     except Exception:
         return None
 
+# 画像URLを取得する関数
 def fetch_image_urls(search_url, headers):
     if cancel_flag.is_set():
         return []
@@ -120,6 +125,7 @@ def fetch_image_urls(search_url, headers):
     except Exception:
         return []
 
+# 画像をスクレイピングする主要な関数
 def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_ratio_tolerance=0.2, image_format="webp", progress=None):
     cancel_flag.clear()
     search_url = f"https://www.bing.com/images/search?q={query}&form=HDRSC2&first=1"
@@ -145,7 +151,7 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
     target_ratio = parse_aspect_ratio(aspect_ratio)
     
     if progress is not None:
-        progress(0, desc="Downloading images")
+        progress(0, desc="画像をダウンロード中")
     
     for i, img_url in enumerate(image_urls):
         if cancel_flag.is_set():
@@ -157,12 +163,13 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
         if filepath:
             downloaded_images.append(filepath)
             if progress is not None:
-                progress((len(downloaded_images)) / num_images, desc=f"Downloaded {len(downloaded_images)} of {num_images}")
+                progress((len(downloaded_images)) / num_images, desc=f"{len(downloaded_images)}枚中{num_images}枚ダウンロード完了")
         
         time.sleep(1)  # 1秒待機してサーバーに負荷をかけないようにする
 
     return downloaded_images
 
+# Gradio用の画像スクレイピング関数
 def gradio_scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance, image_format, progress=gr.Progress()):
     try:
         if not query.strip():
@@ -180,13 +187,16 @@ def gradio_scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance
     except Exception as e:
         raise gr.Error(str(e))
 
+# ダウンロードをキャンセルする関数
 def cancel_download():
     cancel_flag.set()
     return "ダウンロードをキャンセルしました。"
 
+# 入力をリセットする関数
 def reset_inputs():
     return ["", 10, "指定なし ⬜", 0.2, "webp"]
 
+# Gradioインターフェースの定義
 with gr.Blocks() as iface:
     gr.Markdown("# がぞうとってくる～ん！")
     gr.Markdown("キーワードを入力すると、関連する画像を自動的にダウンロードして表示しますなん。")
@@ -220,18 +230,22 @@ with gr.Blocks() as iface:
                     inputs=None, 
                     outputs=[query, num_images, aspect_ratio, aspect_ratio_tolerance, image_format])
 
+# Gradioを実行する関数
 def run_gradio():
     iface.launch(share=True)
 
+# WebViewを実行する関数
 def run_webview():
     webview.create_window("がぞうとってくる～ん！", "http://127.0.0.1:7860")
     webview.start()
 
 if __name__ == "__main__":
+    # Gradioを別スレッドで実行
     gradio_thread = threading.Thread(target=run_gradio)
     gradio_thread.start()
     
     # Gradioサーバーが起動するのを少し待つ
     time.sleep(5)
     
+    # WebViewを実行
     run_webview()
