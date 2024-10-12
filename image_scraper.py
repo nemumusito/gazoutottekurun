@@ -202,7 +202,7 @@ with gr.Blocks() as iface:
             with gr.Row():
                 submit_btn = gr.Button("がぞうとってくるん！")
                 cancel_btn = gr.Button("とるのやめるん！")
-                clear_btn = gr.Button("Clear")
+                clear_btn = gr.Button("設定クリアなん！")
         
         with gr.Column():
             output_gallery = gr.Gallery(label="ダウンロードされた画像なん！")
