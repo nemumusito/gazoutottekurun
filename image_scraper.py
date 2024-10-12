@@ -9,6 +9,7 @@ import gradio as gr
 from PIL import Image
 import io
 import webview
+import threading
 
 # 定数の定義
 ASPECT_RATIO_CHOICES = [
@@ -170,7 +171,17 @@ iface = gr.Interface(
 )
 
 def run_gradio():
-    iface.queue().launch(share=True)
+    iface.launch(share=True)
+
+def run_webview():
+    webview.create_window("画像スクレイピングツール", "http://127.0.0.1:7860")
+    webview.start()
 
 if __name__ == "__main__":
-    webview.create_window("画像スクレイピングツール", "http://127.0.0.1:7860")
+    gradio_thread = threading.Thread(target=run_gradio)
+    gradio_thread.start()
+    
+    # Gradioサーバーが起動するのを少し待つ
+    time.sleep(5)
+    
+    run_webview()
