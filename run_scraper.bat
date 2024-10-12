@@ -18,7 +18,12 @@ if exist requirements.txt (
 
 REM image_scraper.pyの実行
 echo スクレイピングを開始します...
-python image_scraper.py
+start python image_scraper.py
 
-echo スクレイピングが完了しました。
+REM ブラウザでGradioのURLを開く
+timeout /t 5 /nobreak
+start http://127.0.0.1:7860/
+
+echo Gradioのインターフェースがブラウザで開かれました。
+echo スクリプトを終了するには、このウィンドウを閉じてください。
 pause
