@@ -202,27 +202,40 @@ def cancel_download():
     cancel_flag.set()
     return "ダウンロードをキャンセルしました。"
 
-iface = gr.Interface(
-    fn=gradio_scrape_images,
-    inputs=[
-        gr.Textbox(label="検索したい画像のキーワードを入力してください"),
-        gr.Slider(minimum=1, maximum=50, value=10, step=1, label="ダウンロードする画像の数"),
-        gr.Dropdown(
-            choices=ASPECT_RATIO_CHOICES,
-            value="指定なし ⬜",
-            label="アスペクト比"
-        ),
-        gr.Slider(minimum=0.1, maximum=0.5, value=0.2, step=0.1, label="アスペクト比の許容範囲")
-    ],
-    outputs=gr.Gallery(label="ダウンロードされた画像"),
-    title="画像スクレイピングツール",
-    description="キーワードを入力すると、関連する画像を自動的にダウンロードして表示します。画像はWebP形式で保存されます。",
-    allow_flagging="never",
-)
+def reset_inputs():
+    return ["", 10, "指定なし ⬜", 0.2]
 
-iface.load(lambda: None, None, gr.Button("Clear"), outputs=iface.inputs)
-cancel_button = gr.Button("キャンセル")
-cancel_button.click(fn=cancel_download, inputs=None, outputs=gr.Textbox())
+with gr.Blocks() as iface:
+    gr.Markdown("# 画像スクレイピングツール")
+    gr.Markdown("キーワードを入力すると、関連する画像を自動的にダウンロードして表示します。画像はWebP形式で保存されます。")
+    
+    with gr.Row():
+        with gr.Column():
+            query = gr.Textbox(label="検索したい画像のキーワードを入力してください")
+            num_images = gr.Slider(minimum=1, maximum=50, value=10, step=1, label="ダウンロードする画像の数")
+            aspect_ratio = gr.Dropdown(choices=ASPECT_RATIO_CHOICES, value="指定なし ⬜", label="アスペクト比")
+            aspect_ratio_tolerance = gr.Slider(minimum=0.1, maximum=0.5, value=0.2, step=0.1, label="アスペクト比の許容範囲")
+            
+            with gr.Row():
+                submit_btn = gr.Button("スクレイピング開始")
+                cancel_btn = gr.Button("キャンセル")
+                clear_btn = gr.Button("Clear")
+        
+        with gr.Column():
+            output_gallery = gr.Gallery(label="ダウンロードされた画像")
+            output_text = gr.Textbox(label="メッセージ")
+    
+    submit_btn.click(fn=gradio_scrape_images, 
+                     inputs=[query, num_images, aspect_ratio, aspect_ratio_tolerance], 
+                     outputs=output_gallery)
+    
+    cancel_btn.click(fn=cancel_download, 
+                     inputs=None, 
+                     outputs=output_text)
+    
+    clear_btn.click(fn=reset_inputs, 
+                    inputs=None, 
+                    outputs=[query, num_images, aspect_ratio, aspect_ratio_tolerance])
 
 def run_gradio():
     iface.launch(share=True)
