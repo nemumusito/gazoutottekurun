@@ -2,6 +2,14 @@
 chcp 65001 > nul
 echo Starting the project...
 
+REM Check Python version
+python --version
+if errorlevel 1 (
+    echo Failed to check Python version. Please make sure Python is installed and added to PATH.
+    pause
+    exit /b 1
+)
+
 REM Create virtual environment if it doesn't exist
 if not exist venv (
     echo Creating virtual environment...
@@ -34,17 +42,13 @@ if exist requirements.txt (
 
 REM Run image_scraper.py
 echo Starting the scraping process...
-start python image_scraper.py
+python image_scraper.py 2> error_log.txt
 if errorlevel 1 (
-    echo Failed to start the scraping process. Please check your Python installation and try again.
+    echo Failed to start the scraping process. Please check error_log.txt for more details.
+    type error_log.txt
     pause
     exit /b 1
 )
 
-REM Open Gradio interface in browser
-timeout /t 5 /nobreak
-start http://127.0.0.1:7860/
-
-echo Gradio interface has been opened in your browser.
-echo To exit the script, close this window.
+echo Script execution completed.
 pause
