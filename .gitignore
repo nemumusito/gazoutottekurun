@@ -7,7 +7,7 @@
 !*.txt
 !*.bat
 !.gitignore
-
+!LICENSE
 # Ignore pycache
 __pycache__/
 *.pyc
