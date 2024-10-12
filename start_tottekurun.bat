@@ -2,10 +2,10 @@
 chcp 65001 > nul
 echo Starting the project...
 
-REM Check if Python is installed
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo Python is not installed. Installing Python 3.10.6...
+REM Check if Python is installed and in PATH
+where python >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Python is not installed or not in PATH. Installing Python 3.10.6...
     
     REM Download Python 3.10.6 installer
     powershell -Command "(New-Object Net.WebClient).DownloadFile('https://www.python.org/ftp/python/3.10.6/python-3.10.6-amd64.exe', 'python-3.10.6-amd64.exe')"
@@ -16,20 +16,14 @@ if errorlevel 1 (
     REM Delete the installer
     del python-3.10.6-amd64.exe
     
-    REM Update PATH
-    setx PATH "%PATH%;C:\Program Files\Python310;C:\Program Files\Python310\Scripts" /M
-    
     echo Python 3.10.6 has been installed.
-    
-    REM Restart the script to reflect the new environment variables
-    echo Restarting the script to apply changes...
-    start "" "%~f0"
+    echo Please restart this script manually to ensure all changes are applied.
+    pause
     exit
-) else (
-    echo Python is already installed.
 )
 
-:CONTINUE_AFTER_PYTHON_INSTALL
+echo Python is installed. Proceeding with the script...
+
 REM Create virtual environment if it doesn't exist
 if not exist venv (
     echo Creating virtual environment...
