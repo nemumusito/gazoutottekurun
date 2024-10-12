@@ -8,6 +8,9 @@
 !*.bat
 !.gitignore
 !LICENSE
+
+# Ignore error_log.txt
+error_log.txt
 # Ignore pycache
 __pycache__/
 *.pyc
