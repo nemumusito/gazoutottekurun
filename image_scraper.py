@@ -10,12 +10,6 @@ from PIL import Image
 import io
 import webview
 import threading
-import traceback
-import logging
-
-# ロギングの設定
-logging.basicConfig(filename='scraper.log', level=logging.INFO, 
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 # 定数の定義
 ASPECT_RATIO_CHOICES = [
@@ -66,7 +60,6 @@ def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance
                     width, height = image.size
                     image_ratio = width / height
                     if abs(image_ratio - aspect_ratio) > aspect_ratio_tolerance:
-                        logging.info(f"Aspect ratio mismatch: {url}")
                         return None
 
                 # 元のファイル名を取得
@@ -82,22 +75,19 @@ def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance
                 
                 # 同名ファイルが存在する場合はスキップ
                 if os.path.exists(filepath):
-                    logging.info(f"File already exists, skipping: {filepath}")
                     return None
                 
                 # Convert and save as WebP
                 image.save(filepath, 'WEBP')
-                logging.info(f"Downloaded and converted: {filepath}")
                 return filepath
             else:
-                logging.warning(f"Not an image: {url}")
+                return None
         else:
-            logging.warning(f"Failed to download: {url}. Status code: {response.status_code}")
+            return None
     except requests.Timeout:
-        logging.error(f"Timeout occurred while downloading: {url}")
-    except Exception as e:
-        logging.error(f"Error downloading/converting {url}: {str(e)}")
-    return None
+        return None
+    except Exception:
+        return None
 
 def fetch_image_urls(search_url, headers):
     if cancel_flag.is_set():
@@ -105,7 +95,7 @@ def fetch_image_urls(search_url, headers):
     try:
         response = requests.get(search_url, headers=headers, timeout=TIMEOUT)
         if response.status_code != 200:
-            raise Exception(f"Failed to fetch search results. Status code: {response.status_code}")
+            return []
         
         soup = BeautifulSoup(response.text, 'html.parser')
         image_urls = []
@@ -120,15 +110,13 @@ def fetch_image_urls(search_url, headers):
                     image_urls.append(img_url)
             except json.JSONDecodeError:
                 continue
-            except Exception as e:
-                logging.error(f"Error processing image URL: {str(e)}")
+            except Exception:
+                continue
         
         return image_urls
     except requests.Timeout:
-        logging.error("Timeout occurred while fetching image URLs")
         return []
-    except Exception as e:
-        logging.error(f"Error fetching image URLs: {str(e)}")
+    except Exception:
         return []
 
 def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_ratio_tolerance=0.2, progress=None):
@@ -149,7 +137,6 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
     
     image_urls = fetch_image_urls(search_url, headers)
     if not image_urls:
-        logging.error("No image URLs found")
         return []
     
     downloaded_images = []
@@ -165,18 +152,14 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
         if len(downloaded_images) >= num_images:
             break
         
-        logging.info(f"Attempting to download: {img_url}")
         filepath = download_and_convert_image(img_url, folder, target_ratio, aspect_ratio_tolerance)
         if filepath:
             downloaded_images.append(filepath)
             if progress is not None:
                 progress((len(downloaded_images)) / num_images, desc=f"Downloaded {len(downloaded_images)} of {num_images}")
-        else:
-            logging.warning(f"Failed to download image {i+1}")
         
         time.sleep(1)  # 1秒待機してサーバーに負荷をかけないようにする
 
-    logging.info(f"Total images downloaded: {len(downloaded_images)}")
     return downloaded_images
 
 def gradio_scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance, progress=gr.Progress()):
@@ -191,12 +174,10 @@ def gradio_scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance
             if cancel_flag.is_set():
                 raise gr.Error("ダウンロードがキャンセルされました。")
             else:
-                raise Exception("画像のダウンロードに失敗しました。")
+                raise gr.Error("画像のダウンロードに失敗しました。")
         return downloaded_images
     except Exception as e:
-        logging.error(f"Error in gradio_scrape_images: {str(e)}")
-        logging.error(traceback.format_exc())
-        raise gr.Error(f"エラーが発生しました: {str(e)}")
+        raise gr.Error(str(e))
 
 def cancel_download():
     cancel_flag.set()
