@@ -20,10 +20,16 @@ if errorlevel 1 (
     setx PATH "%PATH%;C:\Program Files\Python310;C:\Program Files\Python310\Scripts" /M
     
     echo Python 3.10.6 has been installed.
+    
+    REM Restart the script to reflect the new environment variables
+    echo Restarting the script to apply changes...
+    start "" "%~f0"
+    exit
 ) else (
     echo Python is already installed.
 )
 
+:CONTINUE_AFTER_PYTHON_INSTALL
 REM Create virtual environment if it doesn't exist
 if not exist venv (
     echo Creating virtual environment...
