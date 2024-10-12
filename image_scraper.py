@@ -224,7 +224,7 @@ def run_gradio():
     iface.launch(share=True)
 
 def run_webview():
-    webview.create_window("画像スクレイピングツール", "http://127.0.0.1:7860")
+    webview.create_window("がぞうとってくる～ん！", "http://127.0.0.1:7860")
     webview.start()
 
 if __name__ == "__main__":
