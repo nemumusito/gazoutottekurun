@@ -19,6 +19,7 @@ ASPECT_RATIO_CHOICES = [
     "16:9 📺",
     "9:16 📱"
 ]
+IMAGE_FORMAT_CHOICES = ["webp", "jpg", "png"]
 BASE_FOLDER = "img"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 TIMEOUT = 30  # リクエストのタイムアウト時間（秒）
@@ -44,7 +45,7 @@ def parse_aspect_ratio(aspect_ratio):
         return float(match.group(1)) / float(match.group(2))
     return None
 
-def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance):
+def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance, image_format):
     if cancel_flag.is_set():
         return None
     try:
@@ -67,9 +68,9 @@ def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance
                 original_filename = os.path.basename(parsed_url.path)
                 filename = sanitize_filename(original_filename)
                 
-                # 拡張子をwebpに変更
+                # 拡張子を変更
                 filename_without_ext, _ = os.path.splitext(filename)
-                filename = f"{filename_without_ext}.webp"
+                filename = f"{filename_without_ext}.{image_format}"
                 
                 filepath = os.path.join(folder, filename)
                 
@@ -77,8 +78,8 @@ def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance
                 if os.path.exists(filepath):
                     return None
                 
-                # Convert and save as WebP
-                image.save(filepath, 'WEBP')
+                # Convert and save as specified format
+                image.save(filepath, image_format.upper())
                 return filepath
             else:
                 return None
@@ -119,7 +120,7 @@ def fetch_image_urls(search_url, headers):
     except Exception:
         return []
 
-def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_ratio_tolerance=0.2, progress=None):
+def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_ratio_tolerance=0.2, image_format="webp", progress=None):
     cancel_flag.clear()
     search_url = f"https://www.bing.com/images/search?q={query}&form=HDRSC2&first=1"
     headers = {
@@ -152,7 +153,7 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
         if len(downloaded_images) >= num_images:
             break
         
-        filepath = download_and_convert_image(img_url, folder, target_ratio, aspect_ratio_tolerance)
+        filepath = download_and_convert_image(img_url, folder, target_ratio, aspect_ratio_tolerance, image_format)
         if filepath:
             downloaded_images.append(filepath)
             if progress is not None:
@@ -162,14 +163,14 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
 
     return downloaded_images
 
-def gradio_scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance, progress=gr.Progress()):
+def gradio_scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance, image_format, progress=gr.Progress()):
     try:
         if not query.strip():
             raise ValueError("検索キーワードを入力してください。")
         if num_images < 1 or num_images > 50:
             raise ValueError("ダウンロードする画像の数は1から50の間で指定してください。")
         
-        downloaded_images = scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance, progress)
+        downloaded_images = scrape_images(query, num_images, aspect_ratio, aspect_ratio_tolerance, image_format, progress)
         if not downloaded_images:
             if cancel_flag.is_set():
                 raise gr.Error("ダウンロードがキャンセルされました。")
@@ -184,30 +185,31 @@ def cancel_download():
     return "ダウンロードをキャンセルしました。"
 
 def reset_inputs():
-    return ["", 10, "指定なし ⬜", 0.2]
+    return ["", 10, "指定なし ⬜", 0.2, "webp"]
 
 with gr.Blocks() as iface:
-    gr.Markdown("# 画像スクレイピングツール")
-    gr.Markdown("キーワードを入力すると、関連する画像を自動的にダウンロードして表示します。画像はWebP形式で保存されます。")
+    gr.Markdown("# がぞうとってくる～ん！")
+    gr.Markdown("キーワードを入力すると、関連する画像を自動的にダウンロードして表示しますなん。")
     
     with gr.Row():
         with gr.Column():
             query = gr.Textbox(label="検索したい画像のキーワードを入力してください")
-            num_images = gr.Slider(minimum=1, maximum=50, value=10, step=1, label="ダウンロードする画像の数")
+            num_images = gr.Slider(minimum=1, maximum=50, value=10, step=1, label="ダウンロードする画像の数なん！")
             aspect_ratio = gr.Dropdown(choices=ASPECT_RATIO_CHOICES, value="指定なし ⬜", label="アスペクト比")
             aspect_ratio_tolerance = gr.Slider(minimum=0.1, maximum=0.5, value=0.2, step=0.1, label="アスペクト比の許容範囲")
+            image_format = gr.Dropdown(choices=IMAGE_FORMAT_CHOICES, value="webp", label="画像の保存形式")
             
             with gr.Row():
-                submit_btn = gr.Button("スクレイピング開始")
-                cancel_btn = gr.Button("キャンセル")
+                submit_btn = gr.Button("がぞうとってくるん！")
+                cancel_btn = gr.Button("とるのやめるん！")
                 clear_btn = gr.Button("Clear")
         
         with gr.Column():
-            output_gallery = gr.Gallery(label="ダウンロードされた画像")
-            output_text = gr.Textbox(label="メッセージ")
+            output_gallery = gr.Gallery(label="ダウンロードされた画像なん！")
+            output_text = gr.Textbox(label="メッセージなん！")
     
     submit_btn.click(fn=gradio_scrape_images, 
-                     inputs=[query, num_images, aspect_ratio, aspect_ratio_tolerance], 
+                     inputs=[query, num_images, aspect_ratio, aspect_ratio_tolerance, image_format], 
                      outputs=output_gallery)
     
     cancel_btn.click(fn=cancel_download, 
@@ -216,7 +218,7 @@ with gr.Blocks() as iface:
     
     clear_btn.click(fn=reset_inputs, 
                     inputs=None, 
-                    outputs=[query, num_images, aspect_ratio, aspect_ratio_tolerance])
+                    outputs=[query, num_images, aspect_ratio, aspect_ratio_tolerance, image_format])
 
 def run_gradio():
     iface.launch(share=True)
