@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import re
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 import json
 import gradio as gr
 from PIL import Image
@@ -39,13 +39,6 @@ def create_folder(base_folder, query):
         os.makedirs(folder_path)
     return folder_path
 
-def get_next_image_number(folder):
-    existing_files = [f for f in os.listdir(folder) if f.endswith('.webp')]
-    if not existing_files:
-        return 1
-    numbers = [int(re.search(r'\d+', f).group()) for f in existing_files if re.search(r'\d+', f)]
-    return max(numbers) + 1 if numbers else 1
-
 def parse_aspect_ratio(aspect_ratio):
     if aspect_ratio == "指定なし ⬜":
         return None
@@ -54,7 +47,7 @@ def parse_aspect_ratio(aspect_ratio):
         return float(match.group(1)) / float(match.group(2))
     return None
 
-def download_and_convert_image(url, folder, query, index, aspect_ratio, aspect_ratio_tolerance):
+def download_and_convert_image(url, folder, aspect_ratio, aspect_ratio_tolerance):
     try:
         response = requests.get(url, stream=True, timeout=TIMEOUT)
         if response.status_code == 200:
@@ -71,8 +64,21 @@ def download_and_convert_image(url, folder, query, index, aspect_ratio, aspect_r
                         logging.info(f"Aspect ratio mismatch: {url}")
                         return None
 
-                filename = f"{query}{index}.webp"
+                # 元のファイル名を取得
+                parsed_url = urlparse(url)
+                original_filename = os.path.basename(parsed_url.path)
+                filename = sanitize_filename(original_filename)
+                
+                # 拡張子をwebpに変更
+                filename_without_ext, _ = os.path.splitext(filename)
+                filename = f"{filename_without_ext}.webp"
+                
                 filepath = os.path.join(folder, filename)
+                
+                # 同名ファイルが存在する場合はスキップ
+                if os.path.exists(filepath):
+                    logging.info(f"File already exists, skipping: {filepath}")
+                    return None
                 
                 # Convert and save as WebP
                 image.save(filepath, 'WEBP')
@@ -137,7 +143,6 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
         return []
     
     downloaded_images = []
-    start_index = get_next_image_number(folder)
     
     target_ratio = parse_aspect_ratio(aspect_ratio)
     
@@ -149,7 +154,7 @@ def scrape_images(query, num_images=10, aspect_ratio="指定なし ⬜", aspect_
             break
         
         logging.info(f"Attempting to download: {img_url}")
-        filepath = download_and_convert_image(img_url, folder, query, start_index + len(downloaded_images), target_ratio, aspect_ratio_tolerance)
+        filepath = download_and_convert_image(img_url, folder, target_ratio, aspect_ratio_tolerance)
         if filepath:
             downloaded_images.append(filepath)
             if progress is not None:
